@@ -95,7 +95,7 @@ Note that there should be model files (```*.pt```) in ```./model```.
 
 
 ## Running
-* Ensure the installation specifcaiton is met (specifically 'gym')
+* Ensure the installation specification is met (specifically 'gym')
 * Modify the config file if needed
 * Navigate to the Code folder 
 * Run python train.py or test.py
