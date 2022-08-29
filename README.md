@@ -71,7 +71,7 @@ Note that there should be model files (```*.pt```) in ```./model```.
 * https://github.com/yd-kwon/MatNet
 * https://github.com/dmlc/dgl/tree/master/examples/pytorch/han
 
-
+---
 
 # Additional Instruction
 * The output files are now in .csv format instead of .xls
@@ -82,7 +82,7 @@ Note that there should be model files (```*.pt```) in ```./model```.
 
 ## Config file (config.json)
 * For training, update the env_paras and/or train_paras
-* For testing, update the test_paras (specify the strategy here: sample = false is Greedy
+* For testing, update the test_paras (specify the strategy here: sample = false is Greedy |
                                                                  sample = true  is Sampling)
 
 
