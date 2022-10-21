@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
-from graph.hgnn import GATedge, MLPsim
+from graph.hgnn import GATedge, GATedge_ops, MLPsim
 from mlp import MLPCritic, MLPActor
 
 
@@ -141,6 +141,14 @@ class HGNNScheduler(nn.Module):
             self.get_operations.append(MLPs([self.out_size_ma, self.out_size_ope, self.out_size_ope, self.out_size_ope],
                                             self.hidden_size_ope, self.out_size_ope, self.num_heads[i], self.dropout))
 
+        # Operation node embedding (modified)
+        self.get_operations_mod = nn.ModuleList()
+        self.get_operations_mod.append(GATedge_ops((self.in_size_ope, self.in_size_ope, self.in_size_ope), self.hidden_size_ope, 
+                                                self.out_size_ope, self.num_heads[0], self.dropout, self.dropout, activation=F.elu))
+        for i in range(1,len(self.num_heads)):
+            self.get_operations_mod.append(GATedge_ops((self.out_size_ope, self.out_size_ope, self.out_size_ope), self.hidden_size_ope, 
+                                                    self.out_size_ope, self.num_heads[i], self.dropout, self.dropout, activation=F.elu))
+
         self.actor = MLPActor(self.n_hidden_actor, self.actor_dim, self.n_latent_actor, self.action_dim).to(self.device)
         self.critic = MLPCritic(self.n_hidden_critic, self.critic_dim, self.n_latent_critic, 1).to(self.device)
 
@@ -220,11 +228,14 @@ class HGNNScheduler(nn.Module):
             # shape: [len(batch_idxes), num_mas, out_size_ma]
             h_mas = self.get_machines[i](state.ope_ma_adj_batch, state.batch_idxes, features)
             features = (features[0], h_mas, features[2])
+
             # Second Stage, operation node embedding
             # shape: [len(batch_idxes), max(num_opes), out_size_ope]
-            h_opes = self.get_operations[i](state.ope_ma_adj_batch, state.ope_pre_adj_batch, state.ope_sub_adj_batch,
+            # h_opes = self.get_operations[i](state.ope_ma_adj_batch, state.ope_pre_adj_batch, state.ope_sub_adj_batch,
+            #                                 state.batch_idxes, features)
+            h_opes_mod = self.get_operations_mod[i](state.ope_ma_adj_batch, state.ope_pre_adj_batch, state.ope_sub_adj_batch,
                                             state.batch_idxes, features)
-            features = (h_opes, features[1], features[2])
+            features = (h_opes_mod, features[1], features[2])
 
         # Stacking and pooling
         h_mas_pooled = h_mas.mean(dim=-2)  # shape: [len(batch_idxes), out_size_ma]
@@ -232,16 +243,16 @@ class HGNNScheduler(nn.Module):
         if not flag_sample and not flag_train:
             h_opes_pooled = []
             for i in range(len(batch_idxes)):
-                h_opes_pooled.append(torch.mean(h_opes[i, :nums_opes[i], :], dim=-2))
+                h_opes_pooled.append(torch.mean(h_opes_mod[i, :nums_opes[i], :], dim=-2))
             h_opes_pooled = torch.stack(h_opes_pooled)  # shape: [len(batch_idxes), d]
         else:
-            h_opes_pooled = h_opes.mean(dim=-2)  # shape: [len(batch_idxes), out_size_ope]
+            h_opes_pooled = h_opes_mod.mean(dim=-2)  # shape: [len(batch_idxes), out_size_ope]
 
         # Detect eligible O-M pairs (eligible actions) and generate tensors for actor calculation
         ope_step_batch = torch.where(state.ope_step_batch > state.end_ope_biases_batch,
                                      state.end_ope_biases_batch, state.ope_step_batch)
-        jobs_gather = ope_step_batch[..., :, None].expand(-1, -1, h_opes.size(-1))[batch_idxes]
-        h_jobs = h_opes.gather(1, jobs_gather)
+        jobs_gather = ope_step_batch[..., :, None].expand(-1, -1, h_opes_mod.size(-1))[batch_idxes]
+        h_jobs = h_opes_mod.gather(1, jobs_gather)
         # Matrix indicating whether processing is possible
         # shape: [len(batch_idxes), num_jobs, num_mas]
         eligible_proc = state.ope_ma_adj_batch[batch_idxes].gather(1,
@@ -323,15 +334,16 @@ class HGNNScheduler(nn.Module):
         for i in range(len(self.num_heads)):
             h_mas = self.get_machines[i](ope_ma_adj, batch_idxes, features)
             features = (features[0], h_mas, features[2])
-            h_opes = self.get_operations[i](ope_ma_adj, ope_pre_adj, ope_sub_adj, batch_idxes, features)
-            features = (h_opes, features[1], features[2])
+            # h_opes = self.get_operations[i](ope_ma_adj, ope_pre_adj, ope_sub_adj, batch_idxes, features)
+            h_opes_mod = self.get_operations_mod[i](ope_ma_adj, ope_pre_adj, ope_sub_adj, batch_idxes, features)
+            features = (h_opes_mod, features[1], features[2])
 
         # Stacking and pooling
         h_mas_pooled = h_mas.mean(dim=-2)
-        h_opes_pooled = h_opes.mean(dim=-2)
+        h_opes_pooled = h_opes_mod.mean(dim=-2)
 
         # Detect eligible O-M pairs (eligible actions) and generate tensors for critic calculation
-        h_jobs = h_opes.gather(1, jobs_gather)
+        h_jobs = h_opes_mod.gather(1, jobs_gather)
         h_jobs_padding = h_jobs.unsqueeze(-2).expand(-1, -1, proc_time.size(-1), -1)
         h_mas_padding = h_mas.unsqueeze(-3).expand_as(h_jobs_padding)
         h_mas_pooled_padding = h_mas_pooled[:, None, None, :].expand_as(h_jobs_padding)

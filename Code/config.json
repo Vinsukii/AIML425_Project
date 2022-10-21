@@ -13,7 +13,7 @@
     "out_size_ma": 8,
     "in_size_ope": 6,
     "out_size_ope": 8,
-    "hidden_size_ope": 128,
+    "hidden_size_ope": 150,
     "num_heads": [1, 1],
     "dropout": 0.0,
     "n_latent_actor": 64,
