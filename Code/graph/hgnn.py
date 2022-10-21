@@ -170,7 +170,7 @@ class MLPsim(nn.Module):
 #-MY CONTRIBUTION (START)-
 class GATedge_ops(nn.Module):
     '''
-    Operation node embedding
+    Operation node embedding modified
     '''
     def __init__(self,
                  in_feats,
@@ -185,11 +185,12 @@ class GATedge_ops(nn.Module):
         '''
         :param in_feats: A tuple of the dimension of input vector for each type,
         including [machine, operation (pre), operation (sub), operation (self)]
+        :param hidden_dim: Hidden dimensions of the MLP for final projection
         :param out_feats: Dimension of the output (operation embedding)
         :param num_head: Number of heads
         '''
         super(GATedge_ops, self).__init__()
-        self._num_heads = num_head  # single head is used in the actual experiment
+        self._num_heads = num_head 
         # opes(pre) -> opes(self)
         self._in_src_feats_opes_pre = in_feats[0]
         self._in_dst_feats_opes_pre = in_feats[2]
@@ -281,10 +282,6 @@ class GATedge_ops(nn.Module):
                 self.fc_src_opes_pre, self.fc_dst_opes_pre = self.fc_opes_pre, self.fc_opes_pre
             if not hasattr(self, 'fc_src_opes_sub'):
                 self.fc_src_opes_sub, self.fc_dst_opes_sub = self.fc_opes_sub, self.fc_opes_sub
-
-            # Identity matrix for self-loop of nodes
-            self_adj = torch.eye(feat[0].size(-2),
-                                dtype=torch.int64).unsqueeze(0).expand_as(ope_pre_adj_batch[batch_idxes])
 
             feat_src_opes_pre = self.fc_src_opes_pre(h_src_opes_pre)
             feat_dst_opes_pre = self.fc_dst_opes_pre(h_dst_opes_pre)
