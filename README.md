@@ -1,6 +1,6 @@
 # MY CONTRIBUTION
 ## Algorithm modification
-* Where the code in between the comments -MY CONTRIBUTION (START)- and -MY CONTRIBUTION (END)- denotes the changes I made
+* Where the code in between the comments -MY CONTRIBUTION (START)- and -MY CONTRIBUTION (END)- denotes my contribution
 * Added a GATedge_ops(nn.Module) class in graph/hgnn.py to perform the modified algorithm for operation node embeddings (line 170-356)
 * Apply the new class for the opeartion node embedding in PPO_model.py (line 144-152)
 
