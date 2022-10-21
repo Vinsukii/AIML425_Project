@@ -30,7 +30,6 @@ def main():
     # handle = pynvml.nvmlDeviceGetHandleByIndex(0)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    device = torch.device("cpu")
 
     if device.type == 'cuda':
         torch.cuda.set_device(device)
