@@ -268,7 +268,6 @@ class GATedge_ops(nn.Module):
         nn.init.xavier_normal_(self.attn_e_sub, gain=gain)
 
 
-
     def forward(self, ope_ma_adj_batch, ope_pre_adj_batch, ope_sub_adj_batch, batch_idxes, feat):
 
         if isinstance(feat, tuple):
@@ -311,7 +310,7 @@ class GATedge_ops(nn.Module):
         alpha_ij = alpha[..., :-1, :]
         alpha_kk = alpha[..., -1, :].unsqueeze(-2)
 
-        # Calculate embedding
+        # Calculate embedding (pre)
         Wmu_ij = feat_src_opes_pre.unsqueeze(-2)
         a = Wmu_ij * alpha_ij.unsqueeze(-1)
         b = torch.sum(a, dim=-3)
@@ -338,14 +337,15 @@ class GATedge_ops(nn.Module):
         alpha_ij = alpha[..., :-1, :]
         alpha_kk = alpha[..., -1, :].unsqueeze(-2)
 
-        # Calculate embedding
+        # Calculate embedding (sub)
         Wmu_ij = feat_src_opes_sub.unsqueeze(-2)
         a = Wmu_ij * alpha_ij.unsqueeze(-1)
         b = torch.sum(a, dim=-3)
         c = feat_dst_opes_sub * alpha_kk.squeeze().unsqueeze(-1)
         nu_k_prime_opes_sub = torch.sigmoid(b+c)
 
-
+        
+        # Concatenate embeddings & perform final projection
         OPS_embeddings = torch.cat([nu_k_prime_opes_pre, nu_k_prime_opes_sub], dim=-1)
         mu_ij_prime = self.project(OPS_embeddings)
         
