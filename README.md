@@ -16,9 +16,12 @@
 * Test folder name now contain "-G" or "-S" to indicate used strategy (Greedy or Sampling)
 * Both train and test folder name now contain "_paper" or "_modified" to indicate the algorithm used (orignal or modified)
 
+Original code can be found here: https://github.com/songwenas12/fjsp-drl
+
 
 # fjsp-drl
 Implementation of the IEEE TII paper [Flexible Job Shop Scheduling via Graph Neural Network and Deep Reinforcement Learning](https://ieeexplore.ieee.org/document/9826438). *IEEE Transactions on Industrial Informatics*, 2022.
+
 
 ```
 @ARTICLE{9826438,  
