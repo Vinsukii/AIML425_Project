@@ -6,17 +6,16 @@
 
 
 ## Results folder (on 10x5 instances)
-* Each subfolder contains the trained model and the corresponding experimental results
+* Each folder contains the experimental results of the trained model
 * Test output files include testing time, mean/max/min makespan, mean/max/min runtime
 * Train output files include training time, mean/max/min makespan
-* The mean validation makespan graph is included in each 'save/train_...' folder
+* The mean validation makespan graph is included in each 'train_...' folder
 * All runs were done on the lab computer CPU (Intel i7-8700 12 cores @ 3.2GHz)
 
 ## Other changes
 * The output files are now in .csv format instead of .xls
 * Test folder name now contain "-G" or "-S" to indicate used strategy (Greedy or Sampling)
-* Train & test file now contain the enviroment setup (e.g 10 jobs & 5 machines -> "file_10_5")
-* See the save folder in 'Code' for reference
+* Both train and test folder name now contain "_paper" or "_modified" to indicate the algorithm used (orignal or modified)
 
 
 # fjsp-drl
