@@ -13,7 +13,7 @@
 
 ## Other changes
 * The output files are now in .csv format instead of .xls
-* Test folder name now contain "-G" or "-S" to indicate used strategy (Greedy or Sampling)
+* During testing, only the sampling strategy (DRL-S) was used
 * Train and test folder name now contain "_paper" or "_modified" to indicate the algorithm used (orignal or modified)
 
 Original code can be found here: https://github.com/songwenas12/fjsp-drl
