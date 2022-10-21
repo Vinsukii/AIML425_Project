@@ -7,14 +7,14 @@
 
 ## Results folder (on 10x5 instances)
 * Each folder contains the experimental results of the trained model
-* Train & Test output files include training/testing time, mean/max/min makespan
+* Train & Test output files include training/testing time (in seconds), mean/max/min makespan
 * The mean validation makespan graph is included in each 'train_...' folder
 * All runs were done on the lab computer CPU (Intel i7-8700 12 cores @ 3.2GHz)
 
 ## Other changes
 * The output files are now in .csv format instead of .xls
 * Test folder name now contain "-G" or "-S" to indicate used strategy (Greedy or Sampling)
-* Both train and test folder name now contain "_paper" or "_modified" to indicate the algorithm used (orignal or modified)
+* Train and test folder name now contain "_paper" or "_modified" to indicate the algorithm used (orignal or modified)
 
 Original code can be found here: https://github.com/songwenas12/fjsp-drl
 
