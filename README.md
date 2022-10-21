@@ -7,8 +7,7 @@
 
 ## Results folder (on 10x5 instances)
 * Each folder contains the experimental results of the trained model
-* Test output files include testing time, mean/max/min makespan, mean/max/min runtime
-* Train output files include training time, mean/max/min makespan
+* Train & Test output files include training/testing time, mean/max/min makespan
 * The mean validation makespan graph is included in each 'train_...' folder
 * All runs were done on the lab computer CPU (Intel i7-8700 12 cores @ 3.2GHz)
 
