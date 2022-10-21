@@ -1,5 +1,5 @@
 import torch
-from torch import nn
+from torch import embedding, nn
 from torch.nn import Identity
 import torch.nn.functional as F
 
@@ -166,3 +166,191 @@ class MLPsim(nn.Module):
         b = torch.sum(a, dim=-2)
         c = self.project(b)
         return c
+
+#-MY CONTRIBUTION (START)-
+class GATedge_ops(nn.Module):
+    '''
+    Operation node embedding
+    '''
+    def __init__(self,
+                 in_feats,
+                 hidden_dim,
+                 out_feats,
+                 num_head,
+                 feat_drop=0.,
+                 attn_drop=0.,
+                 negative_slope=0.2,
+                 residual=False,
+                 activation=None):
+        '''
+        :param in_feats: A tuple of the dimension of input vector for each type,
+        including [machine, operation (pre), operation (sub), operation (self)]
+        :param out_feats: Dimension of the output (operation embedding)
+        :param num_head: Number of heads
+        '''
+        super(GATedge_ops, self).__init__()
+        self._num_heads = num_head  # single head is used in the actual experiment
+        # opes(pre) -> opes(self)
+        self._in_src_feats_opes_pre = in_feats[0]
+        self._in_dst_feats_opes_pre = in_feats[2]
+
+        # opes(sub) -> opes(self)
+        self._in_src_feats_opes_sub = in_feats[1]
+        self._in_dst_feats_opes_sub = in_feats[2]
+        
+        self._hidden_dim = hidden_dim
+        self._out_feats = out_feats
+
+        self.project = nn.Sequential(
+            nn.ELU(),
+            nn.Linear(self._out_feats * 2, self._hidden_dim),
+            nn.ELU(),
+            nn.Linear(self._hidden_dim, self._hidden_dim),
+            nn.ELU(),
+            nn.Linear(self._hidden_dim, self._out_feats),
+        )
+
+
+        if isinstance(in_feats, tuple):
+            self.fc_src_opes_pre = nn.Linear(
+                self._in_src_feats_opes_pre, out_feats * num_head, bias=False)
+            self.fc_dst_opes_pre = nn.Linear(
+                self._in_dst_feats_opes_pre, out_feats * num_head, bias=False)
+
+            self.fc_src_opes_sub = nn.Linear(
+                self._in_src_feats_opes_sub, out_feats * num_head, bias=False)
+            self.fc_dst_opes_sub = nn.Linear(
+                self._in_dst_feats_opes_sub, out_feats * num_head, bias=False)
+        else:
+            self.fc_opes_pre = nn.Linear(
+                self._in_src_feats_opes_pre, out_feats * num_head, bias=False)
+            self.fc_opes_sub = nn.Linear(
+                self._in_src_feats_opes_sub, out_feats * num_head, bias=False)
+
+        self.attn_l_pre = nn.Parameter(torch.rand(size=(1, num_head, out_feats), dtype=torch.float))
+        self.attn_r_pre = nn.Parameter(torch.rand(size=(1, num_head, out_feats), dtype=torch.float))
+        self.attn_e_pre = nn.Parameter(torch.rand(size=(1, num_head, out_feats), dtype=torch.float))
+
+        self.attn_l_sub = nn.Parameter(torch.rand(size=(1, num_head, out_feats), dtype=torch.float))
+        self.attn_r_sub = nn.Parameter(torch.rand(size=(1, num_head, out_feats), dtype=torch.float))
+        self.attn_e_sub = nn.Parameter(torch.rand(size=(1, num_head, out_feats), dtype=torch.float))
+
+        self.feat_drop = nn.Dropout(feat_drop)
+        self.attn_drop = nn.Dropout(attn_drop)
+        self.leaky_relu = nn.LeakyReLU(negative_slope)
+
+        self.register_buffer('res_fc', None)
+        self.reset_parameters()
+        self.activation = activation
+
+    def reset_parameters(self):
+        gain = nn.init.calculate_gain('relu')
+
+        if hasattr(self, 'fc_opes_pre'):
+            nn.init.xavier_normal_(self.fc_opes_pre.weight, gain=gain)
+        else:
+            nn.init.xavier_normal_(self.fc_src_opes_pre.weight, gain=gain)
+            nn.init.xavier_normal_(self.fc_dst_opes_pre.weight, gain=gain)
+
+        if hasattr(self, 'fc_opes_sub'):
+            nn.init.xavier_normal_(self.fc_opes_sub.weight, gain=gain)
+        else:
+            nn.init.xavier_normal_(self.fc_src_opes_sub.weight, gain=gain)
+            nn.init.xavier_normal_(self.fc_dst_opes_sub.weight, gain=gain)
+
+        nn.init.xavier_normal_(self.attn_l_pre, gain=gain)
+        nn.init.xavier_normal_(self.attn_r_pre, gain=gain)
+        nn.init.xavier_normal_(self.attn_e_pre, gain=gain)
+
+        nn.init.xavier_normal_(self.attn_l_sub, gain=gain)
+        nn.init.xavier_normal_(self.attn_r_sub, gain=gain)
+        nn.init.xavier_normal_(self.attn_e_sub, gain=gain)
+
+
+
+    def forward(self, ope_ma_adj_batch, ope_pre_adj_batch, ope_sub_adj_batch, batch_idxes, feat):
+
+        if isinstance(feat, tuple):
+            h_src_opes_pre = self.feat_drop(feat[0])
+            h_dst_opes_pre = self.feat_drop(feat[0])
+
+            h_src_opes_sub = self.feat_drop(feat[0])
+            h_dst_opes_sub = self.feat_drop(feat[0])
+
+            if not hasattr(self, 'fc_src_opes_pre'):
+                self.fc_src_opes_pre, self.fc_dst_opes_pre = self.fc_opes_pre, self.fc_opes_pre
+            if not hasattr(self, 'fc_src_opes_sub'):
+                self.fc_src_opes_sub, self.fc_dst_opes_sub = self.fc_opes_sub, self.fc_opes_sub
+
+            # Identity matrix for self-loop of nodes
+            self_adj = torch.eye(feat[0].size(-2),
+                                dtype=torch.int64).unsqueeze(0).expand_as(ope_pre_adj_batch[batch_idxes])
+
+            feat_src_opes_pre = self.fc_src_opes_pre(h_src_opes_pre)
+            feat_dst_opes_pre = self.fc_dst_opes_pre(h_dst_opes_pre)
+
+            feat_src_opes_sub = self.fc_src_opes_sub(h_src_opes_sub)
+            feat_dst_opes_sub = self.fc_dst_opes_sub(h_dst_opes_sub)
+
+
+        # Calculate attention coefficients between neighbours
+
+        # opes(pre) -> opes(self)
+        el = (feat_src_opes_pre * self.attn_l_pre).sum(dim=-1).unsqueeze(-1)
+        er = (feat_dst_opes_pre * self.attn_r_pre).sum(dim=-1).unsqueeze(-1)
+        el_add_ee = ope_pre_adj_batch[batch_idxes].unsqueeze(-1) * el.unsqueeze(-2)
+        a = el_add_ee + ope_pre_adj_batch[batch_idxes].unsqueeze(-1) * er.unsqueeze(-3)
+        eij = self.leaky_relu(a)
+        ekk = self.leaky_relu(er + er)
+
+        # Normalize attention coefficients
+        mask = torch.cat((ope_pre_adj_batch[batch_idxes].unsqueeze(-1)==1,
+                        torch.full(size=(ope_pre_adj_batch[batch_idxes].size(0), 1,
+                                        ope_pre_adj_batch[batch_idxes].size(2), 1),
+                                    dtype=torch.bool, fill_value=True)), dim=-3)
+        e = torch.cat((eij, ekk.unsqueeze(-3)), dim=-3)
+        e[~mask] = float('-inf')
+        alpha = F.softmax(e.squeeze(-1), dim=-2)
+        alpha_ij = alpha[..., :-1, :]
+        alpha_kk = alpha[..., -1, :].unsqueeze(-2)
+
+        # Calculate embedding
+        Wmu_ij = feat_src_opes_pre.unsqueeze(-2)
+        a = Wmu_ij * alpha_ij.unsqueeze(-1)
+        b = torch.sum(a, dim=-3)
+        c = feat_dst_opes_pre * alpha_kk.squeeze().unsqueeze(-1)
+        nu_k_prime_opes_pre = torch.sigmoid(b+c)
+
+
+        # opes(sub) -> opes(self)
+        el = (feat_src_opes_sub * self.attn_l_sub).sum(dim=-1).unsqueeze(-1)
+        er = (feat_dst_opes_sub * self.attn_r_sub).sum(dim=-1).unsqueeze(-1)
+        el_add_ee = ope_sub_adj_batch[batch_idxes].unsqueeze(-1) * el.unsqueeze(-2)
+        a = el_add_ee + ope_sub_adj_batch[batch_idxes].unsqueeze(-1) * er.unsqueeze(-3)
+        eij = self.leaky_relu(a)
+        ekk = self.leaky_relu(er + er)
+
+        # Normalize attention coefficients
+        mask = torch.cat((ope_sub_adj_batch[batch_idxes].unsqueeze(-1)==1,
+                        torch.full(size=(ope_sub_adj_batch[batch_idxes].size(0), 1,
+                                        ope_sub_adj_batch[batch_idxes].size(2), 1),
+                                    dtype=torch.bool, fill_value=True)), dim=-3)
+        e = torch.cat((eij, ekk.unsqueeze(-3)), dim=-3)
+        e[~mask] = float('-inf')
+        alpha = F.softmax(e.squeeze(-1), dim=-2)
+        alpha_ij = alpha[..., :-1, :]
+        alpha_kk = alpha[..., -1, :].unsqueeze(-2)
+
+        # Calculate embedding
+        Wmu_ij = feat_src_opes_sub.unsqueeze(-2)
+        a = Wmu_ij * alpha_ij.unsqueeze(-1)
+        b = torch.sum(a, dim=-3)
+        c = feat_dst_opes_sub * alpha_kk.squeeze().unsqueeze(-1)
+        nu_k_prime_opes_sub = torch.sigmoid(b+c)
+
+
+        OPS_embeddings = torch.cat([nu_k_prime_opes_pre, nu_k_prime_opes_sub], dim=-1)
+        mu_ij_prime = self.project(OPS_embeddings)
+        
+        return mu_ij_prime
+#-MY CONTRIBUTION (END)-
