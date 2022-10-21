@@ -1,3 +1,24 @@
+# MY CONTRIBUTION
+## Algorithm modification
+* Where the code in between the comments -MY CONTRIBUTION (START)- and -MY CONTRIBUTION (END)- denotes the changes I made
+* Added a GATedge_ops(nn.Module) class in graph/hgnn.py to perform the modified algorithm for operation node embeddings (line 170-356)
+* Apply the new class for the opeartion node embedding in PPO_model.py (line 144-152)
+
+
+## Results folder (on 10x5 instances)
+* Each subfolder contains the trained model and the corresponding experimental results
+* Test output files include testing time, mean/max/min makespan, mean/max/min runtime
+* Train output files include training time, mean/max/min makespan
+* The mean validation makespan graph is included in each 'save/train_...' folder
+* All runs were done on the lab computer CPU (Intel i7-8700 12 cores @ 3.2GHz)
+
+## Other changes
+* The output files are now in .csv format instead of .xls
+* Test folder name now contain "-G" or "-S" to indicate used strategy (Greedy or Sampling)
+* Train & test file now contain the enviroment setup (e.g 10 jobs & 5 machines -> "file_10_5")
+* See the save folder in 'Code' for reference
+
+
 # fjsp-drl
 Implementation of the IEEE TII paper [Flexible Job Shop Scheduling via Graph Neural Network and Deep Reinforcement Learning](https://ieeexplore.ieee.org/document/9826438). *IEEE Transactions on Industrial Informatics*, 2022.
 
@@ -70,32 +91,3 @@ Note that there should be model files (```*.pt```) in ```./model```.
 * https://github.com/zcaicaros/L2D
 * https://github.com/yd-kwon/MatNet
 * https://github.com/dmlc/dgl/tree/master/examples/pytorch/han
-
----
-
-# Additional Instruction
-* The output files are now in .csv format instead of .xls
-* Test folder name now contain "-G" or "-S" to indicate used strategy (Greedy or Sampling)
-* Train & test file now contain the enviroment setup (e.g 10 jobs & 5 machines -> "file_10_5")
-* See the save folder in 'Code' for reference
-
-
-## Config file (config.json)
-* For training, update the env_paras and/or train_paras
-* For testing, update the test_paras (specify the strategy here: sample = false is Greedy |
-                                                                 sample = true  is Sampling)
-
-
-## Reproduction Results (Results folder)
-* Each subfolder contains the trained model and the corresponding experimental results
-* Test output files include testing time, mean/max/min makespan, mean/max/min runtime
-* Train output files include training time, mean/max/min makespan
-* The mean validation makespan graph is included in each 'save/train_...' folder
-* All runs were done on the lab computer CPU (Intel i7-8700 12 cores @ 3.2GHz)
-
-
-## Running
-* Ensure the installation specification is met (specifically 'gym')
-* Modify the config file if needed
-* Navigate to the Code folder 
-* Run python train.py or test.py
